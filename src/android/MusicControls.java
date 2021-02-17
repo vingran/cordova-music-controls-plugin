@@ -9,6 +9,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.Notification;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -93,9 +94,22 @@ public class MusicControls extends CordovaPlugin {
 		final Activity activity = this.cordova.getActivity();
 		final Context context=activity.getApplicationContext();
 
-    		this.cordovaActivity = activity;
+		// Notification Killer
+		final MusicControlsServiceConnection mConnection = new MusicControlsServiceConnection(activity);
 
-		this.notification = new MusicControlsNotification(activity,this.notificationID);
+		this.cordovaActivity = activity;
+		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID) {
+			@Override
+			protected void onNotificationUpdated(Notification notification) {
+				mConnection.setNotification(notification, this.infos.isPlaying);
+			}
+
+			@Override
+			protected void onNotificationDestroyed() {
+				mConnection.setNotification(null, false);
+			}
+		};
+
 		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
 		this.registerBroadcaster(mMessageReceiver);
 
@@ -120,14 +134,6 @@ public class MusicControls extends CordovaPlugin {
 			e.printStackTrace();
 		}
 
-		// Notification Killer
-		ServiceConnection mConnection = new ServiceConnection() {
-			public void onServiceConnected(ComponentName className, IBinder binder) {
-				((KillBinder) binder).service.startService(new Intent(activity, MusicControlsNotificationKiller.class));
-			}
-			public void onServiceDisconnected(ComponentName className) {
-			}
-		};
 		Intent startServiceIntent = new Intent(activity,MusicControlsNotificationKiller.class);
 		startServiceIntent.putExtra("notificationID",this.notificationID);
 		activity.bindService(startServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
