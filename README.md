@@ -17,7 +17,7 @@ updates to npm to make life easier for everyone.
 
 ## Installation
 - Current release
-`npm install cordova-plugin-music-controls2`
+`cordova plugin add cordova-plugin-music-controls2`
 - Bleeding edge direct from github
 `cordova plugin add https://github.com/ghenry22/cordova-plugin-music-controls2`
 
