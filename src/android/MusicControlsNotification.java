@@ -32,12 +32,12 @@ public class MusicControlsNotification {
 	private NotificationManager notificationManager;
 	private Notification.Builder notificationBuilder;
 	private int notificationID;
-	private MusicControlsInfos infos;
+	protected MusicControlsInfos infos;
 	private Bitmap bitmapCover;
 	private String CHANNEL_ID;
 
 	// Public Constructor
-	public MusicControlsNotification(Activity cordovaActivity,int id){
+	public MusicControlsNotification(Activity cordovaActivity, int id){
 		this.CHANNEL_ID ="cordova-music-channel-id";
 		this.notificationID = id;
 		this.cordovaActivity = cordovaActivity;
@@ -73,6 +73,7 @@ public class MusicControlsNotification {
 		this.createBuilder();
 		Notification noti = this.notificationBuilder.build();
 		this.notificationManager.notify(this.notificationID, noti);
+		this.onNotificationUpdated(noti);
 	}
 
 	// Toggle the play/pause button
@@ -81,6 +82,7 @@ public class MusicControlsNotification {
 		this.createBuilder();
 		Notification noti = this.notificationBuilder.build();
 		this.notificationManager.notify(this.notificationID, noti);
+		this.onNotificationUpdated(noti);
 	}
 
 	// Toggle the dismissable status
@@ -89,6 +91,7 @@ public class MusicControlsNotification {
 		this.createBuilder();
 		Notification noti = this.notificationBuilder.build();
 		this.notificationManager.notify(this.notificationID, noti);
+		this.onNotificationUpdated(noti);
 	}
 
 	// Get image from url
@@ -277,5 +280,9 @@ public class MusicControlsNotification {
 
 	public void destroy(){
 		this.notificationManager.cancel(this.notificationID);
+		this.onNotificationDestroyed();
 	}
+
+	protected void onNotificationUpdated(Notification notification) {}
+	protected void onNotificationDestroyed() {}
 }
