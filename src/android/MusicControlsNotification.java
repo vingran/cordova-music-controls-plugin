@@ -59,9 +59,11 @@ public class MusicControlsNotification {
 			// Configure the notification channel.
 			mChannel.setDescription(description);
 
-			this.notificationManager.createNotificationChannel(mChannel);
-    }
+			// Don't show badges for this channel
+			mChannel.setShowBadge(false);
 
+			this.notificationManager.createNotificationChannel(mChannel);
+    	}
 	}
 
 	// Show or update notification
