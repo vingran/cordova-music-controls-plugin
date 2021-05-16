@@ -89,12 +89,11 @@ function events(action) {
 		case 'music-controls-destroy':
 			// Do something
 			break;
-
-		// External controls (iOS only)
-    		case 'music-controls-toggle-play-pause' :
+    	case 'music-controls-toggle-play-pause' :
 			// Do something
 			break;
-    		case 'music-controls-seek-to':
+		// Lockscreen seek controls (iOS only)
+    	case 'music-controls-seek-to':
 			const seekToInSeconds = JSON.parse(action).position;
 			MusicControls.updateElapsed({
 				elapsed: seekToInSeconds,
@@ -106,9 +105,6 @@ function events(action) {
 		// Headset events (Android only)
 		// All media button events are listed below
 		case 'music-controls-media-button' :
-			// Do something
-			break;
-		case 'music-controls-media-button-play-pause' :
 			// Do something
 			break;
 		case 'music-controls-headset-unplugged':
