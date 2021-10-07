@@ -65,6 +65,9 @@ public class MusicControls extends CordovaPlugin {
 
 		// Listen for headset plug/unplug
 		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
+		
+		// Listen for bluetooth connection state changes
+		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter(android.bluetooth.BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED));
 	}
 
 	// Register pendingIntent for broacast
