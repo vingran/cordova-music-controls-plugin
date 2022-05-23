@@ -35,6 +35,8 @@
 - (void) handleMusicControlsNotification:(NSNotification *) notification;
 - (void) registerMusicControlsEventListener;
 - (void) deregisterMusicControlsEventListener;
+- (void) becomeFirstResponder;
+- (void) resignFirstResponder;
 
 @end
 
