@@ -244,6 +244,20 @@ MusicControlsInfo * musicControlsSettings;
     }
 }
 
+- (void) viewDidAppear:(BOOL)animated 
+{
+    if ([[UIApplication sharedApplication] respondsToSelector:@selector(beginReceivingRemoteControlEvents)]){
+        [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+        [self becomeFirstResponder];
+    }
+}
+
+- (void) viewWillDisappear:(BOOL)animated 
+{
+    [[UIApplication sharedApplication] endReceivingRemoteControlEvents];
+    [self resignFirstResponder];
+}
+
 //There are only 3 button slots available so next/prev track and skip forward/back cannot both be enabled
 //skip forward/back will take precedence if both are enabled
 - (void) registerMusicControlsEventListener {

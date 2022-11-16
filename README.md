@@ -65,7 +65,7 @@ MusicControls.create({
 
 - Destroy the media controller:
 ```javascript
-MusicControls.destroy(onSuccess, onError);
+MusicControls.destroy();
 ```
 
 - Subscribe events to the media controller:
