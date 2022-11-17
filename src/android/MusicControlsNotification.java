@@ -25,6 +25,7 @@ import android.os.Build;
 import android.graphics.BitmapFactory;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.media.session.MediaSession.Token;
 
 import android.app.NotificationChannel;
 
@@ -36,12 +37,15 @@ public class MusicControlsNotification {
 	protected MusicControlsInfos infos;
 	private Bitmap bitmapCover;
 	private String CHANNEL_ID;
+	private Token token;
 
 	// Public Constructor
-	public MusicControlsNotification(Activity cordovaActivity, int id){
+	public MusicControlsNotification(Activity cordovaActivity, int id, Token token){
 		this.CHANNEL_ID = UUID.randomUUID().toString();
 		this.notificationID = id;
 		this.cordovaActivity = cordovaActivity;
+		Context context = cordovaActivity;
+		this.token = token;
 		this.notificationManager = (NotificationManager) cordovaActivity.getSystemService(Context.NOTIFICATION_SERVICE);
 
 		// use channelID for Oreo and higher
@@ -262,7 +266,7 @@ public class MusicControlsNotification {
 			for (int i = 0; i < nbControls; ++i) {
 				args[i] = i;
 			}
-			builder.setStyle(new Notification.MediaStyle().setShowActionsInCompactView(args));
+			builder.setStyle(new Notification.MediaStyle().setShowActionsInCompactView(args).setMediaSession(this.token));
 		}
 		this.notificationBuilder = builder;
 	}

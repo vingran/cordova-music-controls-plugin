@@ -17,6 +17,8 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
+import android.media.session.MediaSession.Token;
+
 import android.util.Log;
 import android.app.Activity;
 import android.content.Context;
@@ -48,11 +50,11 @@ public class MusicControls extends CordovaPlugin {
 	private AudioManager mAudioManager;
 	private PendingIntent mediaButtonPendingIntent;
 	private boolean mediaButtonAccess=true;
+	private android.media.session.MediaSession.Token token;
 
   	private Activity cordovaActivity;
 
 	private MediaSessionCallback mMediaSessionCallback = new MediaSessionCallback();
-
 
 	private void registerBroadcaster(MusicControlsBroadcastReceiver mMessageReceiver){
 		final Context context = this.cordova.getActivity().getApplicationContext();
@@ -101,7 +103,34 @@ public class MusicControls extends CordovaPlugin {
 		final MusicControlsServiceConnection mConnection = new MusicControlsServiceConnection(activity);
 
 		this.cordovaActivity = activity;
-		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID) {
+/* 		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID) {
+			@Override
+			protected void onNotificationUpdated(Notification notification) {
+				mConnection.setNotification(notification, this.infos.isPlaying);
+			}
+
+			@Override
+			protected void onNotificationDestroyed() {
+				mConnection.setNotification(null, false);
+			}
+		}; */
+
+		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
+		this.registerBroadcaster(mMessageReceiver);
+
+		
+		this.mediaSessionCompat = new MediaSessionCompat(context, "cordova-music-controls-media-session", null, this.mediaButtonPendingIntent);
+		this.mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
+
+		MediaSessionCompat.Token _token = this.mediaSessionCompat.getSessionToken();
+		this.token = (android.media.session.MediaSession.Token) _token.getToken();
+
+		setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+		this.mediaSessionCompat.setActive(true);
+
+		this.mediaSessionCompat.setCallback(this.mMediaSessionCallback);
+
+		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID, this.token) {
 			@Override
 			protected void onNotificationUpdated(Notification notification) {
 				mConnection.setNotification(notification, this.infos.isPlaying);
@@ -112,19 +141,6 @@ public class MusicControls extends CordovaPlugin {
 				mConnection.setNotification(null, false);
 			}
 		};
-
-		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
-		this.registerBroadcaster(mMessageReceiver);
-
-		
-		this.mediaSessionCompat = new MediaSessionCompat(context, "cordova-music-controls-media-session", null, this.mediaButtonPendingIntent);
-		this.mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
-
-
-		setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
-		this.mediaSessionCompat.setActive(true);
-
-		this.mediaSessionCompat.setCallback(this.mMediaSessionCallback);
 		
 		// Register media (headset) button event receiver
 		try {
