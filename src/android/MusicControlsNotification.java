@@ -71,15 +71,25 @@ public class MusicControlsNotification {
 
 	// Show or update notification
 	public void updateNotification(MusicControlsInfos newInfos){
-		// Check if the cover has changed	
-		if (!newInfos.cover.isEmpty() && (this.infos == null || !newInfos.cover.equals(this.infos.cover))){
-			this.getBitmapCover(newInfos.cover);
-		}
-		this.infos = newInfos;
-		this.createBuilder();
-		Notification noti = this.notificationBuilder.build();
-		this.notificationManager.notify(this.notificationID, noti);
-		this.onNotificationUpdated(noti);
+		int nbTry = 0;
+		//Add try/catch to avoid app crashed, and try four times
+		do {
+			try {
+				// Check if the cover has changed	
+				if (!newInfos.cover.isEmpty() && (this.infos == null || !newInfos.cover.equals(this.infos.cover))){
+					this.getBitmapCover(newInfos.cover);
+				}
+				this.infos = newInfos;
+				this.createBuilder();
+				Notification noti = this.notificationBuilder.build();
+				this.notificationManager.notify(this.notificationID, noti);
+				this.onNotificationUpdated(noti);
+				nbTry = 10;
+			} catch (Exception e) {
+				this.destroy();
+				nbTry++;
+			}
+		} while (nbTry <= 3);
 	}
 
 	// Toggle the play/pause button
