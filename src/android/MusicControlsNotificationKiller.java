@@ -7,6 +7,7 @@ import android.os.IBinder;
 import android.os.Binder;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 
 public class MusicControlsNotificationKiller extends Service {
 
@@ -37,7 +38,11 @@ public class MusicControlsNotificationKiller extends Service {
 	}
 
 	public void setForeground(Notification notification) {
-		this.startForeground(this.NOTIFICATION_ID, notification);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+			this.startForeground(this.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+	    	} else {
+			this.startForeground(this.NOTIFICATION_ID, notification);
+	    	}
 	}
 
 	public void clearForeground() {
