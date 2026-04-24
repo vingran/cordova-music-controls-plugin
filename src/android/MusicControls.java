@@ -58,18 +58,30 @@ public class MusicControls extends CordovaPlugin {
 
 	private void registerBroadcaster(MusicControlsBroadcastReceiver mMessageReceiver){
 		final Context context = this.cordova.getActivity().getApplicationContext();
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-previous"));
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-pause"));
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-play"));
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-next"));
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-media-button"));
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter("music-controls-destroy"));
-
-		// Listen for headset plug/unplug
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
 		
-		// Listen for bluetooth connection state changes
-		context.registerReceiver((BroadcastReceiver)mMessageReceiver, new IntentFilter(android.bluetooth.BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED));
+		// CORRECTION ANDROID 12+: Spécifier RECEIVER_NOT_EXPORTED ou RECEIVER_EXPORTED
+		// Ces intents sont internes à l'app, donc RECEIVER_NOT_EXPORTED
+		int receiverFlags = Context.RECEIVER_NOT_EXPORTED;
+		
+		try {
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-previous"), receiverFlags);
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-pause"), receiverFlags);
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-play"), receiverFlags);
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-next"), receiverFlags);
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-media-button"), receiverFlags);
+			context.registerReceiver(mMessageReceiver, new IntentFilter("music-controls-destroy"), receiverFlags);
+
+			// Listen for headset plug/unplug - RECEIVER_EXPORTED car c'est un système broadcast
+			context.registerReceiver(mMessageReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG), Context.RECEIVER_EXPORTED);
+			
+			// Listen for bluetooth connection state changes - RECEIVER_EXPORTED car c'est un système broadcast
+			context.registerReceiver(mMessageReceiver, new IntentFilter(android.bluetooth.BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED), Context.RECEIVER_EXPORTED);
+			
+			Log.d("MusicControls", "BroadcastReceivers registered successfully");
+		} catch (Exception e) {
+			Log.e("MusicControls", "Error registering BroadcastReceivers", e);
+			e.printStackTrace();
+		}
 	}
 
 	// Register pendingIntent for broacast
@@ -103,22 +115,41 @@ public class MusicControls extends CordovaPlugin {
 		final MusicControlsServiceConnection mConnection = new MusicControlsServiceConnection(activity);
 
 		this.cordovaActivity = activity;
-/* 		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID) {
-			@Override
-			protected void onNotificationUpdated(Notification notification) {
-				mConnection.setNotification(notification, this.infos.isPlaying);
-			}
 
-			@Override
-			protected void onNotificationDestroyed() {
-				mConnection.setNotification(null, false);
-			}
-		}; */
-
+		// CORRECTION ANDROID 16: Créer le BroadcastReceiver AVANT le MediaSession
 		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
 		this.registerBroadcaster(mMessageReceiver);
 
-		
+		// CORRECTION ANDROID 16: Créer le PendingIntent APRÈS l'enregistrement du BroadcastReceiver
+		// Sinon l'intent implicite ne peut pas être résolu
+		try {
+			this.mAudioManager = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
+			Intent headsetIntent = new Intent("music-controls-media-button");
+			headsetIntent.setPackage(context.getPackageName()); // Intent explicite
+			
+			// CORRECTION ANDROID 16 (API 34+): Utiliser FLAG_IMMUTABLE au lieu de FLAG_MUTABLE
+			int pendingIntentFlags;
+			if (Build.VERSION.SDK_INT >= 34) {
+				// Android 16+ : FLAG_IMMUTABLE est obligatoire
+				pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+			} else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+				// Android 12-15 : FLAG_MUTABLE est autorisé mais FLAG_IMMUTABLE préférable
+				pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
+			} else {
+				// Android < 12 : Pas de restriction
+				pendingIntentFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+			}
+			this.mediaButtonPendingIntent = PendingIntent.getBroadcast(
+				context, 0, headsetIntent, pendingIntentFlags
+			);
+			Log.d("MusicControls", "MediaButtonPendingIntent created successfully");
+		} catch (Exception e) {
+			this.mediaButtonAccess=false;
+			Log.e("MusicControls", "Error creating media button pending intent", e);
+			e.printStackTrace();
+		}
+
+		// CORRECTION ANDROID 16: Créer le MediaSession APRÈS le PendingIntent
 		this.mediaSessionCompat = new MediaSessionCompat(context, "cordova-music-controls-media-session", null, this.mediaButtonPendingIntent);
 		this.mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
 
@@ -129,7 +160,11 @@ public class MusicControls extends CordovaPlugin {
 		this.mediaSessionCompat.setActive(true);
 
 		this.mediaSessionCompat.setCallback(this.mMediaSessionCallback);
+		
+		// Enregistrer le media button event APRÈS la création du MediaSession
+		this.registerMediaButtonEvent();
 
+		// CORRECTION ANDROID 16: Créer la notification APRÈS le MediaSession et le token
 		this.notification = new MusicControlsNotification(this.cordovaActivity, this.notificationID, this.token) {
 			@Override
 			protected void onNotificationUpdated(Notification notification) {
@@ -141,20 +176,6 @@ public class MusicControls extends CordovaPlugin {
 				mConnection.setNotification(null, false);
 			}
 		};
-		
-		// Register media (headset) button event receiver
-		try {
-			this.mAudioManager = (AudioManager)context.getSystemService(Context.AUDIO_SERVICE);
-			Intent headsetIntent = new Intent("music-controls-media-button");
-			this.mediaButtonPendingIntent = PendingIntent.getBroadcast(
-				context, 0, headsetIntent,
-				Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE : PendingIntent.FLAG_UPDATE_CURRENT
-			);
-			this.registerMediaButtonEvent();
-		} catch (Exception e) {
-			this.mediaButtonAccess=false;
-			e.printStackTrace();
-		}
 
 		Intent startServiceIntent = new Intent(activity,MusicControlsNotificationKiller.class);
 		startServiceIntent.putExtra("notificationID",this.notificationID);
@@ -238,9 +259,17 @@ public class MusicControls extends CordovaPlugin {
 
 	@Override
 	public void onDestroy() {
-		this.notification.destroy();
-		this.mMessageReceiver.stopListening();
-		this.unregisterMediaButtonEvent();
+		try {
+			this.notification.destroy();
+			this.mMessageReceiver.stopListening();
+			this.unregisterMediaButtonEvent();
+			// CORRECTION ANDROID 12+: Unregister le broadcaster
+			if (this.mMessageReceiver != null) {
+				this.cordova.getActivity().getApplicationContext().unregisterReceiver(this.mMessageReceiver);
+			}
+		} catch (Exception e) {
+			Log.e("MusicControls", "Error in onDestroy", e);
+		}
 		super.onDestroy();
 	}
 
@@ -249,6 +278,7 @@ public class MusicControls extends CordovaPlugin {
 		onDestroy();
 		super.onReset();
 	}
+	
 	private void setMediaPlaybackState(int state) {
 		PlaybackStateCompat.Builder playbackstateBuilder = new PlaybackStateCompat.Builder();
 		if( state == PlaybackStateCompat.STATE_PLAYING ) {
