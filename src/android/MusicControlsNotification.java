@@ -122,7 +122,7 @@ public class MusicControlsNotification {
 				this.onNotificationUpdated(noti);
 				nbTry = 10;
 			} catch (Exception e) {
-				Log.e(TAG, "Error in updateNotification (attempt " + nbTry + ")", e);
+				// Log.e(TAG, "Error in updateNotification (attempt " + nbTry + ")", e);
 				this.destroy();
 				nbTry++;
 			}
@@ -160,7 +160,7 @@ public class MusicControlsNotification {
 				this.bitmapCover = getBitmapFromLocal(coverURL);
 			}
 		} catch (Exception ex) {
-			Log.e(TAG, "Error getting bitmap cover", ex);
+			// Log.e(TAG, "Error getting bitmap cover", ex);
 			ex.printStackTrace();
 		}
 	}
