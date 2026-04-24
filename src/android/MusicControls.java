@@ -77,9 +77,9 @@ public class MusicControls extends CordovaPlugin {
 			// Listen for bluetooth connection state changes - RECEIVER_EXPORTED car c'est un système broadcast
 			context.registerReceiver(mMessageReceiver, new IntentFilter(android.bluetooth.BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED), Context.RECEIVER_EXPORTED);
 			
-			Log.d("MusicControls", "BroadcastReceivers registered successfully");
+			// Log.d("MusicControls", "BroadcastReceivers registered successfully");
 		} catch (Exception e) {
-			Log.e("MusicControls", "Error registering BroadcastReceivers", e);
+			// Log.e("MusicControls", "Error registering BroadcastReceivers", e);
 			e.printStackTrace();
 		}
 	}
@@ -142,10 +142,10 @@ public class MusicControls extends CordovaPlugin {
 			this.mediaButtonPendingIntent = PendingIntent.getBroadcast(
 				context, 0, headsetIntent, pendingIntentFlags
 			);
-			Log.d("MusicControls", "MediaButtonPendingIntent created successfully");
+			// Log.d("MusicControls", "MediaButtonPendingIntent created successfully");
 		} catch (Exception e) {
 			this.mediaButtonAccess=false;
-			Log.e("MusicControls", "Error creating media button pending intent", e);
+			// Log.e("MusicControls", "Error creating media button pending intent", e);
 			e.printStackTrace();
 		}
 
@@ -268,7 +268,7 @@ public class MusicControls extends CordovaPlugin {
 				this.cordova.getActivity().getApplicationContext().unregisterReceiver(this.mMessageReceiver);
 			}
 		} catch (Exception e) {
-			Log.e("MusicControls", "Error in onDestroy", e);
+			// Log.e("MusicControls", "Error in onDestroy", e);
 		}
 		super.onDestroy();
 	}
