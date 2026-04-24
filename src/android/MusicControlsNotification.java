@@ -38,6 +38,16 @@ public class MusicControlsNotification {
 	private Bitmap bitmapCover;
 	private String CHANNEL_ID;
 	private Token token;
+	private static final String TAG = "MusicControlsNotif";
+	
+	// Codes uniques pour chaque PendingIntent
+	private static final int PENDING_INTENT_PREVIOUS = 1;
+	private static final int PENDING_INTENT_PLAY = 2;
+	private static final int PENDING_INTENT_PAUSE = 3;
+	private static final int PENDING_INTENT_NEXT = 4;
+	private static final int PENDING_INTENT_CLOSE = 5;
+	private static final int PENDING_INTENT_DISMISS = 6;
+	private static final int PENDING_INTENT_CONTENT = 7;
 
 	// Public Constructor
 	public MusicControlsNotification(Activity cordovaActivity, int id, Token token){
@@ -48,16 +58,20 @@ public class MusicControlsNotification {
 		this.token = token;
 		this.notificationManager = (NotificationManager) cordovaActivity.getSystemService(Context.NOTIFICATION_SERVICE);
 
+		// Log.d(TAG, "Constructor called with token: " + (token != null ? "NOT NULL" : "NULL"));
+
 		// use channelID for Oreo and higher
 		if (Build.VERSION.SDK_INT >= 26) {
+			// Log.d(TAG, "Creating notification channel for API " + Build.VERSION.SDK_INT);
 			// The user-visible name of the channel.
 			CharSequence name = "Audio Controls";
 			// The user-visible description of the channel.
 			String description = "Control Playing Audio";
 
+			// CORRECTION ANDROID 16: Changez IMPORTANCE_LOW à IMPORTANCE_DEFAULT
 			int importance = NotificationManager.IMPORTANCE_LOW;
 
-			NotificationChannel mChannel = new NotificationChannel(this.CHANNEL_ID, name,importance);
+			NotificationChannel mChannel = new NotificationChannel(this.CHANNEL_ID, name, importance);
 
 			// Configure the notification channel.
 			mChannel.setDescription(description);
@@ -65,27 +79,50 @@ public class MusicControlsNotification {
 			// Don't show badges for this channel
 			mChannel.setShowBadge(false);
 
+			// CORRECTION ANDROID 16: Autorisez les bulles (bubbles) pour Android 14+
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				// Log.d(TAG, "Setting allowBubbles for Android 14+");
+				mChannel.setAllowBubbles(true);
+			}
+
 			this.notificationManager.createNotificationChannel(mChannel);
+			// Log.d(TAG, "Notification channel created with ID: " + this.CHANNEL_ID);
     	}
 	}
 
 	// Show or update notification
 	public void updateNotification(MusicControlsInfos newInfos){
+		// Log.d(TAG, "updateNotification called");
+		// Log.d(TAG, "Track: " + newInfos.track + ", Artist: " + newInfos.artist);
+		
 		int nbTry = 0;
 		//Add try/catch to avoid app crashed, and try four times
 		do {
 			try {
 				// Check if the cover has changed	
 				if (!newInfos.cover.isEmpty() && (this.infos == null || !newInfos.cover.equals(this.infos.cover))){
+					// Log.d(TAG, "Getting bitmap cover: " + newInfos.cover);
 					this.getBitmapCover(newInfos.cover);
 				}
 				this.infos = newInfos;
 				this.createBuilder();
 				Notification noti = this.notificationBuilder.build();
+				// Log.d(TAG, "Notification built successfully");
+				
+				// Vérifier que la notification a bien les actions
+				if (noti.actions != null) {
+					// Log.d(TAG, "Notification has " + noti.actions.length + " actions");
+				} else {
+					// Log.d(TAG, "WARNING: Notification has NO actions");
+				}
+				
 				this.notificationManager.notify(this.notificationID, noti);
+				// Log.d(TAG, "Notification displayed with ID: " + this.notificationID);
+				
 				this.onNotificationUpdated(noti);
 				nbTry = 10;
 			} catch (Exception e) {
+				Log.e(TAG, "Error in updateNotification (attempt " + nbTry + ")", e);
 				this.destroy();
 				nbTry++;
 			}
@@ -94,6 +131,7 @@ public class MusicControlsNotification {
 
 	// Toggle the play/pause button
 	public void updateIsPlaying(boolean isPlaying){
+		// Log.d(TAG, "updateIsPlaying called: " + isPlaying);
 		this.infos.isPlaying=isPlaying;
 		this.createBuilder();
 		Notification noti = this.notificationBuilder.build();
@@ -103,6 +141,7 @@ public class MusicControlsNotification {
 
 	// Toggle the dismissable status
 	public void updateDismissable(boolean dismissable){
+		// Log.d(TAG, "updateDismissable called: " + dismissable);
 		this.infos.dismissable=dismissable;
 		this.createBuilder();
 		Notification noti = this.notificationBuilder.build();
@@ -121,6 +160,7 @@ public class MusicControlsNotification {
 				this.bitmapCover = getBitmapFromLocal(coverURL);
 			}
 		} catch (Exception ex) {
+			Log.e(TAG, "Error getting bitmap cover", ex);
 			ex.printStackTrace();
 		}
 	}
@@ -166,12 +206,14 @@ public class MusicControlsNotification {
 	}
 
 	private void createBuilder(){
+		// Log.d(TAG, "createBuilder called");
 		Context context = cordovaActivity;
 		Notification.Builder builder = new Notification.Builder(context);
 
 		// use channelID for Oreo and higher
 		if (Build.VERSION.SDK_INT >= 26) {
 			builder.setChannelId(this.CHANNEL_ID);
+			// Log.d(TAG, "Channel ID set: " + this.CHANNEL_ID);
 		}
 
 		//Configure builder
@@ -180,12 +222,15 @@ public class MusicControlsNotification {
 			builder.setContentText(infos.artist);
 		}
 		builder.setWhen(0);
+		// Log.d(TAG, "Content title/text set");
 
 		// set if the notification can be destroyed by swiping
 		if (infos.dismissable){
 			builder.setOngoing(false);
 			Intent dismissIntent = new Intent("music-controls-destroy");
-			PendingIntent dismissPendingIntent = PendingIntent.getBroadcast(context, 1, dismissIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int dismissFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent dismissPendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_DISMISS, dismissIntent, dismissFlags);
 			builder.setDeleteIntent(dismissPendingIntent);
 		} else {
 			builder.setOngoing(true);
@@ -195,10 +240,12 @@ public class MusicControlsNotification {
 		}
 		
 		builder.setPriority(Notification.PRIORITY_MAX);
+		// Log.d(TAG, "Priority set to MAX");
 
 		//If 5.0 >= set the controls to be visible on lockscreen
 		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
 			builder.setVisibility(Notification.VISIBILITY_PUBLIC);
+			// Log.d(TAG, "Visibility set to PUBLIC");
 		}
 
 		//Set SmallIcon
@@ -208,28 +255,35 @@ public class MusicControlsNotification {
 			usePlayingIcon = resId == 0;
 			if(!usePlayingIcon) {
 				builder.setSmallIcon(resId);
+				// Log.d(TAG, "SmallIcon set from resource: " + infos.notificationIcon);
 			}
 		}
 
 		if(usePlayingIcon){
 			if (infos.isPlaying){
 				builder.setSmallIcon(this.getResourceId(infos.playIcon, android.R.drawable.ic_media_play));
+				// Log.d(TAG, "SmallIcon set to play icon");
 			} else {
 				builder.setSmallIcon(this.getResourceId(infos.pauseIcon, android.R.drawable.ic_media_pause));
+				// Log.d(TAG, "SmallIcon set to pause icon");
 			}
 		}
 
 		//Set LargeIcon
 		if (!infos.cover.isEmpty() && this.bitmapCover != null){
 			builder.setLargeIcon(this.bitmapCover);
+			// Log.d(TAG, "LargeIcon set");
 		}
 
 		//Open app if tapped
 		Intent resultIntent = new Intent(context, cordovaActivity.getClass());
 		resultIntent.setAction(Intent.ACTION_MAIN);
 		resultIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-		PendingIntent resultPendingIntent = PendingIntent.getActivity(context, 0, resultIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+		// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire
+		int resultFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+		PendingIntent resultPendingIntent = PendingIntent.getActivity(context, PENDING_INTENT_CONTENT, resultIntent, resultFlags);
 		builder.setContentIntent(resultPendingIntent);
+		// Log.d(TAG, "ContentIntent set");
 
 		//Controls
 		int nbControls=0;
@@ -238,47 +292,71 @@ public class MusicControlsNotification {
 			/* Previous  */
 			nbControls++;
 			Intent previousIntent = new Intent("music-controls-previous");
-			PendingIntent previousPendingIntent = PendingIntent.getBroadcast(context, 1, previousIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int previousFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent previousPendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_PREVIOUS, previousIntent, previousFlags);
 			builder.addAction(this.getResourceId(infos.prevIcon, android.R.drawable.ic_media_previous), "", previousPendingIntent);
+			// Log.d(TAG, "Previous action added");
 		}
 		if (infos.isPlaying){
 			/* Pause  */
 			nbControls++;
 			Intent pauseIntent = new Intent("music-controls-pause");
-			PendingIntent pausePendingIntent = PendingIntent.getBroadcast(context, 1, pauseIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int pauseFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent pausePendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_PAUSE, pauseIntent, pauseFlags);
 			builder.addAction(this.getResourceId(infos.pauseIcon, android.R.drawable.ic_media_pause), "", pausePendingIntent);
+			// Log.d(TAG, "Pause action added");
 		} else {
 			/* Play  */
 			nbControls++;
 			Intent playIntent = new Intent("music-controls-play");
-			PendingIntent playPendingIntent = PendingIntent.getBroadcast(context, 1, playIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int playFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent playPendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_PLAY, playIntent, playFlags);
 			builder.addAction(this.getResourceId(infos.playIcon, android.R.drawable.ic_media_play), "", playPendingIntent);
+			// Log.d(TAG, "Play action added");
 		}
 
 		if (infos.hasNext){
 			/* Next */
 			nbControls++;
 			Intent nextIntent = new Intent("music-controls-next");
-			PendingIntent nextPendingIntent = PendingIntent.getBroadcast(context, 1, nextIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int nextFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent nextPendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_NEXT, nextIntent, nextFlags);
 			builder.addAction(this.getResourceId(infos.nextIcon, android.R.drawable.ic_media_next), "", nextPendingIntent);
+			// Log.d(TAG, "Next action added");
 		}
 		if (infos.hasClose){
 			/* Close */
 			nbControls++;
 			Intent destroyIntent = new Intent("music-controls-destroy");
-			PendingIntent destroyPendingIntent = PendingIntent.getBroadcast(context, 1, destroyIntent, Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_MUTABLE : 0);
+			// CORRECTION ANDROID 16: FLAG_IMMUTABLE obligatoire pour les intents implicites
+			int destroyFlags = PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT;
+			PendingIntent destroyPendingIntent = PendingIntent.getBroadcast(context, PENDING_INTENT_CLOSE, destroyIntent, destroyFlags);
 			builder.addAction(this.getResourceId(infos.closeIcon, android.R.drawable.ic_menu_close_clear_cancel), "", destroyPendingIntent);
+			// Log.d(TAG, "Close action added");
 		}
+
+		// Log.d(TAG, "Total actions: " + nbControls);
 
 		//If 5.0 >= use MediaStyle
 		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP){
+			// Log.d(TAG, "Setting MediaStyle with " + nbControls + " actions");
 			int[] args = new int[nbControls];
 			for (int i = 0; i < nbControls; ++i) {
 				args[i] = i;
 			}
-			builder.setStyle(new Notification.MediaStyle().setShowActionsInCompactView(args).setMediaSession(this.token));
+			Notification.MediaStyle mediaStyle = new Notification.MediaStyle()
+				.setShowActionsInCompactView(args)
+				.setMediaSession(this.token);
+			
+			// Log.d(TAG, "MediaStyle created, token=" + (this.token != null ? "NOT NULL" : "NULL"));
+			builder.setStyle(mediaStyle);
 		}
 		this.notificationBuilder = builder;
+		// Log.d(TAG, "Builder creation complete");
 	}
 
 	private int getResourceId(String name, int fallback){
@@ -296,6 +374,7 @@ public class MusicControlsNotification {
 	}
 
 	public void destroy(){
+		// Log.d(TAG, "destroy called");
 		this.notificationManager.cancel(this.notificationID);
 		this.onNotificationDestroyed();
 	}
